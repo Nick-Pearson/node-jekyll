@@ -1,0 +1,22 @@
+{
+  "name": "node-jekyll",
+  "version": "0.0.0",
+  "description": "A copy of some of jekyll functionality in node-js. This isn't intended to be pretty",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nick-Pearson/node-jekyll"
+  },
+  "author": "Nick Pearson",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.3",
+    "js-yaml": "^3.12.0"
+  },
+  "bin": {
+    "njekyll": "./index.js"
+  }
+}
