@@ -5,11 +5,17 @@ var pjson = require('./package.json');
 var yaml = require('js-yaml');
 var fs   = require('fs');
 var path   = require('path');
+var express = require('express');
 
 var config = {};
 
 // TODO: implement markdown rendering (showdown?)
 var buildextensions = ["html"];
+
+var srcDir = process.cwd();
+var buildDir = path.join(srcDir, "_site");
+
+var excludedFiles = ["_layouts", "_includes", "_site", "_config.yml"];
 
 /*
  * AIMS:
@@ -66,37 +72,69 @@ function buildSite()
 {
   let files = getRelevantFiles();
 
-  let srcDir = process.cwd();
-  let buildDir = path.join(srcDir, "_site");
-
   if(!fs.existsSync(buildDir))
   {
     fs.mkdir(buildDir);
   }
 
   files.forEach(function(file) {
-    let parts = file.split(".");
-    let extension = (parts.length == 0) ? "" : parts[parts.length - 1];
-
-    if(buildextensions.includes(extension))
-    {
-      buildFile(path.join(srcDir, file), path.join(buildDir, file), true);
-    }
-    else
-    {
-      asyncCopyFile(path.join(srcDir, file), path.join(buildDir, file));
-    }
+    processFile(file);
   });
+}
+
+function processFile(file)
+{
+  let fullpath = path.join(srcDir, file);
+  let dpath = path.join(buildDir, file);
+
+  let stats = fs.lstatSync(fullpath);
+  if(stats.isDirectory()) return;
+
+  if(fs.existsSync(dpath))
+  {
+    let dstats = fs.lstatSync(dpath);
+    if(dstats.mtime >= stats.mtime) return;
+  }
+
+  let parts = file.split(".");
+  let extension = (parts.length == 0) ? "" : parts[parts.length - 1];
+
+  if(buildextensions.includes(extension))
+  {
+    console.log('Building ' + file);
+    buildFile(fullpath, dpath, true);
+  }
+  else
+  {
+    console.log('Copying ' + file);
+    asyncCopyFile(fullpath, dpath);
+  }
 }
 
 function startServer()
 {
+  const app = express()
 
+  app.use(express.static('_site'));
+
+  app.listen(4000, () => {
+    console.log('Website is built!\nPreview by entering http://localhost:4000/ into your web browser');
+  });
 }
 
 function watchFiles()
 {
+  let dirs = getRelevantDirs();
 
+  dirs.forEach(function(dir) {
+    fs.watch(path.join(srcDir, dir), function (event, filename) {
+
+      if (fs.existsSync(path.join(srcDir, dir, filename))) {
+        processFile(path.join(dir, filename));
+      }
+
+    });
+  });
 }
 
 function cleanBuild()
@@ -265,29 +303,45 @@ function createDirectoriesRecursive(dir)
     createDirectoriesRecursive(pdir);
   }
 
-  fs.mkdir(dir);
+  fs.mkdirSync(dir);
+}
+
+function getRelevantDirs()
+{
+  let dirs = [""];
+  return dirs.concat(getRelevantDirsRecursive(""));
+}
+
+function getRelevantDirsRecursive(dir)
+{
+  let dirpath = path.join(srcDir, dir);
+  let files = fs.readdirSync(dirpath);
+  let rv = [];
+
+  files.forEach(function(file) {
+    if(fs.lstatSync(path.join(dirpath, file)).isDirectory() && !file.startsWith(".") && !excludedFiles.includes(file))
+    {
+      rv = rv.concat(getRelevantDirsRecursive(path.join(dir, file)));
+      rv.push(path.join(dir, file));
+    }
+  });
+
+  return rv;
 }
 
 function getRelevantFiles()
 {
-  let excludedFiles = [".git", "node_modules", "_layouts", "_includes", "_site", "_config.yml"];
-
-  if(typeof(config.exclude) !== undefined)
-  {
-    excludedFiles = excludedFiles.concat(config.exclude);
-  }
-
-  return getRelevantFilesRecursive(process.cwd(), "", excludedFiles);
+  return getRelevantFilesRecursive(process.cwd(), "");
 }
 
-function getRelevantFilesRecursive(rootPath, relativePath, excludedFiles)
+function getRelevantFilesRecursive(rootPath, relativePath)
 {
   let dirpath = path.join(rootPath, relativePath);
   let files = fs.readdirSync(dirpath);
   let returnVal = [];
 
   files.forEach(function(file) {
-    if(!excludedFiles.includes(file))
+    if(!excludedFiles.includes(file) && !file.startsWith("."))
     {
       let fullpath = path.join(dirpath, file);
       // if this is a directory then do a recursive call
@@ -311,6 +365,11 @@ function parseConfig()
   try
   {
     config = yaml.safeLoad(fs.readFileSync('_config.yml', 'utf8'));
+
+    if(typeof(config.exclude) !== undefined)
+    {
+      excludedFiles = excludedFiles.concat(config.exclude);
+    }
   }
   catch (e)
   {

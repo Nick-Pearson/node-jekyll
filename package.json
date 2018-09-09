@@ -1,6 +1,6 @@
 {
-  "name": "node-jekyll",
-  "version": "0.0.0",
+  "name": "njekyll",
+  "version": "1.1.0",
   "description": "A copy of some of jekyll functionality in node-js. This isn't intended to be pretty",
   "main": "index.js",
   "scripts": {
