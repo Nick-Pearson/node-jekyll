@@ -7,10 +7,12 @@ var fs   = require('fs');
 var path   = require('path');
 var express = require('express');
 
+var showdown  = require('showdown');
+var converter = new showdown.Converter();
+
 var config = {};
 
-// TODO: implement markdown rendering (showdown?)
-var buildextensions = ["html"];
+const buildextensions = ["html", "md"];
 
 var srcDir = process.cwd();
 var buildDir = path.join(srcDir, "_site");
@@ -90,19 +92,31 @@ function processFile(file)
   let stats = fs.lstatSync(fullpath);
   if(stats.isDirectory()) return;
 
+  let parts = file.split(".");
+  let extension = (parts.length == 0) ? "" : parts[parts.length - 1];
+
+  if(extension == "md")
+  {
+      dpath = dpath.substr(0, dpath.length - 3) + ".html";
+  }
+
   if(fs.existsSync(dpath))
   {
     let dstats = fs.lstatSync(dpath);
     if(dstats.mtime >= stats.mtime) return;
   }
 
-  let parts = file.split(".");
-  let extension = (parts.length == 0) ? "" : parts[parts.length - 1];
-
   if(buildextensions.includes(extension))
   {
     console.log('Building ' + file);
-    buildFile(fullpath, dpath, true);
+    let func = (src) => { return src; }
+
+    if(extension == "md")
+    {
+        func = (src) => { return converter.makeHtml(src); }
+    }
+
+    buildFile(fullpath, dpath, true, {}, func);
   }
   else
   {
@@ -139,10 +153,10 @@ function watchFiles()
 
 function cleanBuild()
 {
-
+  removeDirectoriesRecursive(buildDir);
 }
 
-function buildFile(srcPath, destPath, ensureFrontmatter= true, variables = {})
+function buildFile(srcPath, destPath, ensureFrontmatter= true, variables = {}, buildFunc = (src) => { return src })
 {
   if(variables == undefined)
   {
@@ -248,7 +262,7 @@ function buildFile(srcPath, destPath, ensureFrontmatter= true, variables = {})
 
     if(layout != undefined)
     {
-      variables.content = outbuffer;
+      variables.content = buildFunc(outbuffer);
       buildFile(path.join(process.cwd(), "_layouts", layout + ".html"), destPath, false, variables);
     }
     else
@@ -304,6 +318,26 @@ function createDirectoriesRecursive(dir)
   }
 
   fs.mkdirSync(dir);
+}
+
+function removeDirectoriesRecursive(path)
+{
+  if(!fs.existsSync(path)) return;
+
+  fs.readdirSync(path).forEach(function(file)
+  {
+    var curPath = path + "/" + file;
+
+    if (fs.lstatSync(curPath).isDirectory())
+    {
+      removeDirectoriesRecursive(curPath);
+    } else
+    {
+      fs.unlinkSync(curPath);
+    }
+  });
+
+  fs.rmdirSync(path);
 }
 
 function getRelevantDirs()
