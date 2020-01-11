@@ -17,6 +17,10 @@
     "js-yaml": "^3.12.0",
     "showdown": "^1.8.6"
   },
+  "devDependencies": {
+    "eslint": "^6.8.0",
+    "eslint-config-google": "^0.14.0"
+  },
   "bin": {
     "njekyll": "./index.js"
   }

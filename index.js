@@ -1,23 +1,25 @@
 #!/usr/bin/env node
-"use strict";
+'use strict';
 
-var pjson = require('./package.json');
-var yaml = require('js-yaml');
-var fs   = require('fs');
-var path   = require('path');
-var express = require('express');
+const pjson = require('./package.json');
+const yaml = require('js-yaml');
+const fs = require('fs');
+const path = require('path');
+const express = require('express');
 
-var showdown  = require('showdown');
-var converter = new showdown.Converter();
+const showdown = require('showdown');
+const converter = new showdown.Converter();
 
-var config = {};
+let config = {};
 
-const buildextensions = ["html", "md"];
+const pageBuilder = require('./src/pageBuilder.js');
 
-var srcDir = process.cwd();
-var buildDir = path.join(srcDir, "_site");
+const buildextensions = ['html', 'md'];
 
-var excludedFiles = ["_layouts", "_includes", "_site", "_config.yml"];
+const srcDir = process.cwd();
+const buildDir = path.join(srcDir, '_site');
+
+let excludedFiles = ['_layouts', '_includes', '_site', '_config.yml'];
 
 /*
  * AIMS:
@@ -27,93 +29,96 @@ var excludedFiles = ["_layouts", "_includes", "_site", "_config.yml"];
  * help - displays a help message, also the default if the command is unreconised
  */
 
-let args = process.argv.splice(2);
+const args = process.argv.splice(2);
 
-if(args.length == 0)
+if (args.length == 0)
 {
-  console.log("Unreconised command");
+  console.log('Unreconised command');
   displayHelp();
 }
 else
 {
-  let command = args[0].toLowerCase();
+  const command = args[0].toLowerCase();
 
-  if(command == "build")
+  if (command == 'build')
   {
     parseConfig();
     buildSite();
   }
-  else if (command == "serve")
+  else if (command == 'serve')
   {
     parseConfig();
     buildSite();
     startServer();
     watchFiles();
   }
-  else if(command == "clean")
+  else if (command == 'clean')
   {
     parseConfig();
     cleanBuild();
   }
-  else if(command == "help")
+  else if (command == 'help')
   {
     displayHelp();
   }
   else
   {
-    console.log("Unreconised command");
+    console.log('Unreconised command');
     displayHelp();
   }
 }
 
-/********************
- * Functions
-*********************/
-
 function buildSite()
 {
-  let files = getRelevantFiles();
+  const files = getRelevantFiles();
 
-  if(!fs.existsSync(buildDir))
+  if (!fs.existsSync(buildDir))
   {
     fs.mkdir(buildDir);
   }
 
-  files.forEach(function(file) {
+  files.forEach(function(file)
+  {
     processFile(file);
   });
 }
 
 function processFile(file)
 {
-  let fullpath = path.join(srcDir, file);
-  let dpath = path.join(buildDir, file);
+  const fullpath = path.join(srcDir, file);
+  const dpath = path.join(buildDir, file);
 
-  let stats = fs.lstatSync(fullpath);
-  if(stats.isDirectory()) return;
+  const stats = fs.lstatSync(fullpath);
+  if (stats.isDirectory()) return;
 
-  let parts = file.split(".");
-  let extension = (parts.length == 0) ? "" : parts[parts.length - 1];
+  const parts = file.split('.');
+  const extension = (parts.length == 0) ? '' : parts[parts.length - 1];
 
-  if(extension == "md")
+  if (extension == 'md')
   {
-      dpath = dpath.substr(0, dpath.length - 3) + ".html";
+    dpath = dpath.substr(0, dpath.length - 3) + '.html';
   }
 
-  if(fs.existsSync(dpath))
+  if (fs.existsSync(dpath))
   {
-    let dstats = fs.lstatSync(dpath);
-    if(dstats.mtime >= stats.mtime) return;
+    const dstats = fs.lstatSync(dpath);
+    if (dstats.mtime >= stats.mtime) return;
   }
 
-  if(buildextensions.includes(extension))
+  if (buildextensions.includes(extension))
   {
     console.log('Building ' + file);
-    let func = (src) => { return src; }
-
-    if(extension == "md")
+    let func = (src) =>
     {
-        func = (src) => { return converter.makeHtml(src); }
+      return src;
+    };
+
+    if (extension == 'md')
+    {
+      func = (src) =>
+      {
+        return converter.makeHtml(src);
+      };
     }
 
     buildFile(fullpath, dpath, true, {}, func);
@@ -127,26 +132,28 @@ function processFile(file)
 
 function startServer()
 {
-  const app = express()
+  const app = express();
 
   app.use(express.static('_site'));
 
-  app.listen(4000, () => {
+  app.listen(4000, () =>
+  {
     console.log('Website is built!\nPreview by entering http://localhost:4000/ into your web browser');
   });
 }
 
 function watchFiles()
 {
-  let dirs = getRelevantDirs();
+  const dirs = getRelevantDirs();
 
-  dirs.forEach(function(dir) {
-    fs.watch(path.join(srcDir, dir), function (event, filename) {
-
-      if (fs.existsSync(path.join(srcDir, dir, filename))) {
+  dirs.forEach(function(dir)
+  {
+    fs.watch(path.join(srcDir, dir), function(event, filename)
+    {
+      if (fs.existsSync(path.join(srcDir, dir, filename)))
+      {
         processFile(path.join(dir, filename));
       }
-
     });
   });
 }
@@ -156,135 +163,48 @@ function cleanBuild()
   removeDirectoriesRecursive(buildDir);
 }
 
-function buildFile(srcPath, destPath, ensureFrontmatter= true, variables = {}, buildFunc = (src) => { return src })
+function buildFile(srcPath, destPath, ensureFrontmatter= true, variables = {}, buildFunc = (src) =>
 {
-  if(variables == undefined)
+  return src;
+})
+{
+  if (variables == undefined)
   {
     variables = {};
   }
 
-  if(variables.page == undefined)
+  if (variables.page == undefined)
   {
     variables.page = {};
   }
 
-  let inbuffer = "";
-  let outbuffer = "";
-  let stream = fs.createReadStream(srcPath);
+  let inbuffer = '';
+  const stream = fs.createReadStream(srcPath);
   stream.setEncoding('utf-8');
-  stream.on('data', (chunk) => {
+  stream.on('data', (chunk) =>
+  {
     inbuffer += chunk;
   });
 
-  stream.on('end', () => {
-    let lines = inbuffer.split('\n');
-    let layout = undefined;
-    let lineIdx = 0;
-
-    if(lines[0].startsWith("---"))
-    {
-      // parse front matter
-      while(lineIdx < lines.length-1)
-      {
-        lineIdx++;
-        if(lines[lineIdx].startsWith("---"))
-        {
-          lineIdx++;
-          break;
-        }
-
-        let parts = lines[lineIdx].split(":");
-
-        if(parts[0] == "layout")
-        {
-          layout = parts[1].trim();
-        }
-        else if(parts[0] != "")
-        {
-          variables.page[parts[0]] = parts[1];
-        }
-      }
-    }
-    else if(ensureFrontmatter)
-    {
-      // just copy the file
-      asyncCopyFile(srcPath, destPath);
-      return;
-    }
-
-    while(lineIdx < lines.length)
-    {
-      let string = lines[lineIdx];
-      let result = "";
-
-      do
-      {
-        let vidx = string.indexOf("{{");
-        let cidx = string.indexOf("{%");
-
-        let startIdx = -1;
-        let endIdx = -1;
-
-        if((vidx < cidx || cidx == -1) && vidx != -1)
-        {
-          startIdx = vidx;
-          endIdx = string.indexOf("}}");
-        }
-        else if(cidx != -1)
-        {
-          startIdx = cidx;
-          endIdx = string.indexOf("%}");
-        }
-        else
-        {
-          break;
-        }
-
-        if(endIdx == -1)
-        {
-          console.warn("No end found to command ln:" + lineIdx + ", " + srcPath);
-          break;
-        }
-
-        //add the string up to the variable to result
-        result += string.substring(0, startIdx);
-
-        //process the command portion and add it to the result
-        result += processCommand(string.substring(startIdx + 2, endIdx), variables);
-
-        //trim string to the next part we haven't processed
-        string = string.substr(endIdx + 2);
-      } while(true);
-
-      outbuffer +=  result + string + "\n";
-      lineIdx++;
-    }
-
-    if(layout != undefined)
-    {
-      variables.content = buildFunc(outbuffer);
-      buildFile(path.join(process.cwd(), "_layouts", layout + ".html"), destPath, false, variables);
-    }
-    else
-    {
-      let wstream = fs.createWriteStream(destPath);
-      wstream.end(outbuffer, 'utf-8');
-    }
+  stream.on('end', () =>
+  {
+    pageBuilder.buildPage(inbuffer);
   });
 }
 
+// eslint-disable-next-line no-unused-vars
 function processCommand(cmd, variables)
 {
-  let words = cmd.trim().split(" ");
+  const words = cmd.trim().split(' ');
 
-  if(words.length == 0)
+  if (words.length == 0)
   {
-    return "";
+    return '';
   }
 
-  if(words[0] == "include")
+  if (words[0] == 'include')
   {
-    return fs.readFileSync(path.join(process.cwd(), "_includes", words[1]), 'utf-8');
+    return fs.readFileSync(path.join(process.cwd(), '_includes', words[1]), 'utf-8');
   }
   else
   {
@@ -300,9 +220,9 @@ function asyncCopyFile(srcPath, destPath)
 
 function createDirectories(filepath)
 {
-  let dir = path.dirname(filepath);
+  const dir = path.dirname(filepath);
 
-  if(!fs.existsSync(dir))
+  if (!fs.existsSync(dir))
   {
     createDirectoriesRecursive(dir);
   }
@@ -310,9 +230,9 @@ function createDirectories(filepath)
 
 function createDirectoriesRecursive(dir)
 {
-  let pdir = path.dirname(dir);
+  const pdir = path.dirname(dir);
 
-  if(!fs.existsSync(pdir))
+  if (!fs.existsSync(pdir))
   {
     createDirectoriesRecursive(pdir);
   }
@@ -322,16 +242,17 @@ function createDirectoriesRecursive(dir)
 
 function removeDirectoriesRecursive(path)
 {
-  if(!fs.existsSync(path)) return;
+  if (!fs.existsSync(path)) return;
 
   fs.readdirSync(path).forEach(function(file)
   {
-    var curPath = path + "/" + file;
+    const curPath = path + '/' + file;
 
     if (fs.lstatSync(curPath).isDirectory())
     {
       removeDirectoriesRecursive(curPath);
-    } else
+    }
+    else
     {
       fs.unlinkSync(curPath);
     }
@@ -342,18 +263,19 @@ function removeDirectoriesRecursive(path)
 
 function getRelevantDirs()
 {
-  let dirs = [""];
-  return dirs.concat(getRelevantDirsRecursive(""));
+  const dirs = [''];
+  return dirs.concat(getRelevantDirsRecursive(''));
 }
 
 function getRelevantDirsRecursive(dir)
 {
-  let dirpath = path.join(srcDir, dir);
-  let files = fs.readdirSync(dirpath);
+  const dirpath = path.join(srcDir, dir);
+  const files = fs.readdirSync(dirpath);
   let rv = [];
 
-  files.forEach(function(file) {
-    if(fs.lstatSync(path.join(dirpath, file)).isDirectory() && !file.startsWith(".") && !excludedFiles.includes(file))
+  files.forEach(function(file)
+  {
+    if (fs.lstatSync(path.join(dirpath, file)).isDirectory() && !file.startsWith('.') && !excludedFiles.includes(file))
     {
       rv = rv.concat(getRelevantDirsRecursive(path.join(dir, file)));
       rv.push(path.join(dir, file));
@@ -365,21 +287,22 @@ function getRelevantDirsRecursive(dir)
 
 function getRelevantFiles()
 {
-  return getRelevantFilesRecursive(process.cwd(), "");
+  return getRelevantFilesRecursive(process.cwd(), '');
 }
 
 function getRelevantFilesRecursive(rootPath, relativePath)
 {
-  let dirpath = path.join(rootPath, relativePath);
-  let files = fs.readdirSync(dirpath);
+  const dirpath = path.join(rootPath, relativePath);
+  const files = fs.readdirSync(dirpath);
   let returnVal = [];
 
-  files.forEach(function(file) {
-    if(!excludedFiles.includes(file) && !file.startsWith("."))
+  files.forEach(function(file)
+  {
+    if (!excludedFiles.includes(file) && !file.startsWith('.'))
     {
-      let fullpath = path.join(dirpath, file);
+      const fullpath = path.join(dirpath, file);
       // if this is a directory then do a recursive call
-      if(fs.lstatSync(fullpath).isDirectory())
+      if (fs.lstatSync(fullpath).isDirectory())
       {
         returnVal = returnVal.concat(getRelevantFilesRecursive(rootPath, path.join(relativePath, file), excludedFiles));
       }
@@ -400,7 +323,7 @@ function parseConfig()
   {
     config = yaml.safeLoad(fs.readFileSync('_config.yml', 'utf8'));
 
-    if(typeof(config.exclude) !== undefined)
+    if (typeof(config.exclude) !== undefined)
     {
       excludedFiles = excludedFiles.concat(config.exclude);
     }
@@ -413,26 +336,26 @@ function parseConfig()
 
 function displayHelp()
 {
-  console.log("");
-  console.log("Help:");
-  console.log("");
+  console.log('');
+  console.log('Help:');
+  console.log('');
 
-  if(typeof(pjson.name) !== undefined)
+  if (typeof(pjson.name) !== undefined)
   {
-    console.log("** " + pjson.name + " **");
+    console.log('** ' + pjson.name + ' **');
   }
 
-  if(typeof(pjson.description) !== undefined)
+  if (typeof(pjson.description) !== undefined)
   {
     console.log(pjson.description);
   }
 
-  console.log("");
-  console.log("Usage: njekyll <command>");
-  console.log("Commands:")
+  console.log('');
+  console.log('Usage: njekyll <command>');
+  console.log('Commands:');
 
-  console.log("- build    Builds the site and saves it to the _site folder");
-  console.log("- serve    Builds the site starts a webserver in the _site folder to preview changes");
-  console.log("- clean    Deletes the _site folder if it exists");
-  console.log("- help     Shows this help message");
+  console.log('- build    Builds the site and saves it to the _site folder');
+  console.log('- serve    Builds the site starts a webserver in the _site folder to preview changes');
+  console.log('- clean    Deletes the _site folder if it exists');
+  console.log('- help     Shows this help message');
 }
