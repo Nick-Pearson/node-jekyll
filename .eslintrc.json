@@ -17,6 +17,7 @@
     "rules": {
         "brace-style": ["error", "allman"],
         "max-len": "off",
-        "require-jsdoc": "off"
+        "require-jsdoc": "off",
+        "linebreak-style": "off"
     }
 }
