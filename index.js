@@ -13,6 +13,7 @@ const converter = new showdown.Converter();
 let config = {};
 
 const pageBuilder = require('./src/pageBuilder.js');
+const pathHelpers = require('./src/pathHelpers.js');
 
 const buildextensions = ['html', 'md'];
 
@@ -91,8 +92,7 @@ function processFile(file)
   const stats = fs.lstatSync(fullpath);
   if (stats.isDirectory()) return;
 
-  const parts = file.split('.');
-  const extension = (parts.length == 0) ? '' : parts[parts.length - 1];
+  const extension = pathHelpers.getFileExtension(file);
 
   if (extension == 'md')
   {
