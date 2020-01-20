@@ -35,4 +35,31 @@ describe('config', function()
       }
     });
   });
+
+  describe('#isFileExcluded(file)', function()
+  {
+    it('false for file not in exclude list ', function()
+    {
+      const cfg = new Config();
+      assert.strictEqual(false, cfg.isFileExcluded('/blog/index.html'));
+    });
+
+    it('true for file in exclude list ', function()
+    {
+      const cfg = new Config('exclude: [/blog/index.html]');
+      assert.strictEqual(true, cfg.isFileExcluded('/blog/index.html'));
+    });
+
+    it('true for file that starts with underscore', function()
+    {
+      const cfg = new Config();
+      assert.strictEqual(true, cfg.isFileExcluded('/blog/_index.html'));
+    });
+
+    it('true for file in directory that starts with underscore', function()
+    {
+      const cfg = new Config();
+      assert.strictEqual(true, cfg.isFileExcluded('/blog/_post/index.html'));
+    });
+  });
 });

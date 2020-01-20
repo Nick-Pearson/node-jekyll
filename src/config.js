@@ -2,6 +2,9 @@
 
 const yaml = require('js-yaml');
 
+const pathHelpers = require('./pathHelpers.js');
+
+
 function Config(configString)
 {
   if (configString !== undefined)
@@ -14,9 +17,23 @@ function Config(configString)
   }
 }
 
-Config.prototype.isFileExcluded = (file) =>
+function isInExcludedDirectory(file)
 {
-  return false;
+  const filename = pathHelpers.getFileName(file);
+  const directories = pathHelpers.getDirectories(file);
+
+  return filename.startsWith('_') || directories.some((dir) => dir.startsWith('_'));
+}
+
+Config.prototype.isFileExcluded = function(file)
+{
+  let excludedFiles = this.data.exclude;
+  if (!Array.isArray(excludedFiles))
+  {
+    excludedFiles = [];
+  }
+
+  return excludedFiles.includes(file) || isInExcludedDirectory(file);
 };
 
 module.exports = Config;
