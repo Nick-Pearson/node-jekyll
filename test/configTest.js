@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('assert');
+const path = require('path');
 
 const Config = require('../src/config.js');
 
@@ -60,6 +61,36 @@ describe('config', function()
     {
       const cfg = new Config();
       assert.strictEqual(true, cfg.isFileExcluded('/blog/_post/index.html'));
+    });
+  });
+
+  describe('#getSourceDir', function()
+  {
+    it('current working directory if source not specified', function()
+    {
+      const cfg = new Config();
+      assert.strictEqual(path.normalize(process.cwd()), cfg.getSourceDir());
+    });
+
+    it('subdirectory if specified', function()
+    {
+      const cfg = new Config('source: ./subdir');
+      assert.strictEqual(path.normalize(process.cwd() + '/subdir'), cfg.getSourceDir());
+    });
+  });
+
+  describe('#getBuildDir', function()
+  {
+    it('_site directory if source not specified', function()
+    {
+      const cfg = new Config();
+      assert.strictEqual(path.normalize(process.cwd() + '/_site'), cfg.getBuildDir());
+    });
+
+    it('subdirectory if specified', function()
+    {
+      const cfg = new Config('destination: ./_other');
+      assert.strictEqual(path.normalize(process.cwd() + '/_other'), cfg.getBuildDir());
     });
   });
 });

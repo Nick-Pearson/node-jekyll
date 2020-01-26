@@ -1,6 +1,7 @@
 'use strict';
 
 const yaml = require('js-yaml');
+const path = require('path');
 
 const pathHelpers = require('./pathHelpers.js');
 
@@ -34,6 +35,28 @@ Config.prototype.isFileExcluded = function(file)
   }
 
   return excludedFiles.includes(file) || isInExcludedDirectory(file);
+};
+
+Config.prototype.getSourceDir = function()
+{
+  let source = this.data.source;
+  if (source === undefined)
+  {
+    source = '.';
+  }
+
+  return path.join(process.cwd(), source);
+};
+
+Config.prototype.getBuildDir = function()
+{
+  let dest = this.data.destination;
+  if (dest === undefined)
+  {
+    dest = './_site';
+  }
+
+  return path.join(process.cwd(), dest);
 };
 
 module.exports = Config;
