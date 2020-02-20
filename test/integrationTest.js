@@ -79,14 +79,25 @@ describe('integrationTest', function()
   it('copies file to _site on build', function(done)
   {
     fs.writeFileSync(testDirID + '/index.html', '---\n---\n<html><head><title>test</title></head><body><h1>Hello world!</h1></body></html>');
+    fs.mkdirSync(testDirID + '/_layouts');
+    fs.writeFileSync(testDirID + '/_layouts/default.html', '---\n---\n<html><head><title>test</title></head><body>{{content}}</body></html>');
+    fs.writeFileSync(testDirID + '/testA.html', '---\nlayout:default\n---\n<h1>Hello World</h1>');
 
     const proc = runApp(['build']);
 
     proc.handle.on('close', (code) =>
     {
-      assert.strictEqual(code, 0);
-      assert.strictEqual(true, fs.existsSync(testDirID + '/index.html'));
-      assert.strictEqual(true, fs.existsSync(testDirID + '/_site'));
+      assert.strictEqual(code, 0, proc.error);
+      assert.strictEqual(fs.existsSync(testDirID + '/index.html'), true);
+      assert.strictEqual(fs.existsSync(testDirID + '/_site'), true);
+      assert.strictEqual(fs.existsSync(testDirID + '/_site/index.html'), true);
+      assert.equal(
+          fs.readFileSync(testDirID + '/_site/index.html') + '',
+          '<html><head><title>test</title></head><body><h1>Hello world!</h1></body></html>\n');
+      assert.strictEqual(fs.existsSync(testDirID + '/_site/testA.html'), true);
+      assert.equal(
+          fs.readFileSync(testDirID + '/_site/testA.html') + '',
+          '<html><head><title>test</title></head><body><h1>Hello World</h1>\n</body></html>\n');
       done();
     });
   });
