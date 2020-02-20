@@ -6,7 +6,7 @@ module.exports.frontMatter = (contents) =>
 {
   if (contents === null || contents === undefined)
   {
-    return null;
+    return {frontmatter: null, remaining: contents};
   }
 
   if (contents.startsWith('---'))
@@ -19,9 +19,9 @@ module.exports.frontMatter = (contents) =>
     }
 
     const yamlBlock = contents.substring(3, endOfBlock);
-    return yaml.safeLoad(yamlBlock);
+    return {frontmatter: yaml.safeLoad(yamlBlock), remaining: contents.substring(endOfBlock + 4)};
   }
 
-  return null;
+  return {frontmatter: null, remaining: contents};
 };
 
