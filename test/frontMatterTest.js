@@ -22,6 +22,13 @@ describe('frontMatter', function()
       assert.equal(a.remaining, '<html><head><title>I do some stuff</title></head><body><h1>Nothing here</h1></body></html>');
     });
 
+    it('returns empty object front matter if empty block specfied', function()
+    {
+      const a = frontMatter.frontMatter('---\n---\n<html><head><title>Hello world</head><body><p>hi there</p></body></html>');
+      assert.deepEqual(a.frontmatter, {});
+      assert.equal(a.remaining, '<html><head><title>Hello world</head><body><p>hi there</p></body></html>');
+    });
+
     it('returns front matter with layout if layout specfied', function()
     {
       const a = frontMatter.frontMatter('---\nlayout: mylayout\n---\n<html><head><title>Hello world</head><body><p>hi there</p></body></html>');

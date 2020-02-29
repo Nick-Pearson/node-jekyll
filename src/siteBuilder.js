@@ -6,6 +6,7 @@ const path = require('path');
 const showdown = require('showdown');
 const converter = new showdown.Converter();
 const pathHelpers = require('./pathHelpers.js');
+const frontMatter = require('./frontMatter.js');
 
 const buildextensions = ['html', 'md'];
 
@@ -95,38 +96,18 @@ function buildFile(srcPath, destPath, ensureFrontmatter= true, variables = {}, b
 
   stream.on('end', () =>
   {
-    const lines = inbuffer.split('\n');
     let outbuffer = '';
-    let layout = undefined;
     let lineIdx = 0;
 
-    if (lines[0].startsWith('---'))
-    {
-      // parse front matter
-      while (lineIdx < lines.length-1)
-      {
-        lineIdx++;
-        if (lines[lineIdx].startsWith('---'))
-        {
-          lineIdx++;
-          break;
-        }
+    const a = frontMatter.frontMatter(inbuffer);
+    const lines = a.remaining.split('\n');
+    const frontmatter = a.frontmatter;
 
-        const parts = lines[lineIdx].split(':');
-
-        if (parts[0] == 'layout')
-        {
-          layout = parts[1].trim();
-        }
-        else if (parts[0] != '')
-        {
-          variables.page[parts[0]] = parts[1];
-        }
-      }
-    }
-    else if (ensureFrontmatter)
+    variables.page = frontmatter;
+    if (frontmatter == null && ensureFrontmatter)
     {
       // just copy the file
+      console.log('copying ' + srcPath + ' directly as no frontmatter was found');
       asyncCopyFile(srcPath, destPath);
       return;
     }
@@ -179,10 +160,10 @@ function buildFile(srcPath, destPath, ensureFrontmatter= true, variables = {}, b
       lineIdx++;
     }
 
-    if (layout != undefined)
+    if (frontmatter.layout != undefined)
     {
       variables.content = outbuffer;
-      buildFile(path.join(process.cwd(), '_layouts', layout + '.html'), destPath, false, variables);
+      buildFile(path.join(process.cwd(), '_layouts', frontmatter.layout + '.html'), destPath, false, variables);
     }
     else
     {

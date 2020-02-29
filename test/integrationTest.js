@@ -2,8 +2,8 @@
 
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 
-const {execFile} = require('child_process');
 const Uuid = require('uuid-lib');
 
 describe('integrationTest', function()
@@ -28,94 +28,77 @@ describe('integrationTest', function()
     fs.rmdirSync(testDirID, {recursive: true});
   });
 
-  function runApp(args)
+  async function runApp(args)
   {
-    args.unshift('../../index.js');
-    const app = {
+    args.unshift('');
+    args.unshift('');
+    process.argv = args;
+    const proc = {
       stdout: '',
-      stderr: '',
-      error: '',
-      cmd: '',
     };
-    app.cmd = `running $ node ${args.join(' ')}\n in ${testDirID}`;
-    app.handle = execFile('node', args, {cwd: testDirID}, (error, stdout, stderr) =>
-    {
-      if (error)
-      {
-        app.error = error;
-        return;
-      }
-      app.stdout += stdout;
-      app.stderr += stderr;
-    });
 
-    return app;
+    process.stdout.write = function(chunk)
+    {
+      proc.stdout += chunk;
+    };
+    const fullTestDirPath = path.join(__dirname, '../', testDirID);
+    process.chdir(fullTestDirPath);
+
+    require('../index.js');
+    // TODO: Wait for app to finish
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    process.chdir(path.join(__dirname, '../'));
+    return proc;
   }
 
-  it('displays help on when no command', function(done)
+  it('displays help on when no command', async function()
   {
     const proc = runApp([]);
+    await proc;
 
-    proc.handle.on('close', (code) =>
-    {
-      assert.strictEqual(code, 0);
-      assert.notEqual('', proc.stdout);
-      done();
-    });
+    assert.notEqual('', proc.stdout);
   });
 
-  it('displays help on help', function(done)
+  it('displays help on help', async function()
   {
     const proc = runApp(['help']);
+    await proc;
 
-    proc.handle.on('close', (code) =>
-    {
-      assert.strictEqual(code, 0);
-      assert.notEqual('', proc.stdout);
-      done();
-    });
+    assert.notEqual('', proc.stdout);
   });
 
-  it('copies file to _site on build', function(done)
+  it('copies file to _site on build', async function()
   {
     fs.writeFileSync(testDirID + '/index.html', '---\n---\n<html><head><title>test</title></head><body><h1>Hello world!</h1></body></html>');
     fs.mkdirSync(testDirID + '/_layouts');
     fs.writeFileSync(testDirID + '/_layouts/default.html', '---\n---\n<html><head><title>test</title></head><body>{{content}}</body></html>');
-    fs.writeFileSync(testDirID + '/testA.html', '---\nlayout:default\n---\n<h1>Hello World</h1>');
+    fs.writeFileSync(testDirID + '/testA.html', '---\nlayout: default\n---\n<h1>Hello World</h1>');
 
     const proc = runApp(['build']);
+    await proc;
 
-    proc.handle.on('close', (code) =>
-    {
-      assert.strictEqual(code, 0, proc.error);
-      assert.strictEqual(fs.existsSync(testDirID + '/index.html'), true);
-      assert.strictEqual(fs.existsSync(testDirID + '/_site'), true);
-      assert.strictEqual(fs.existsSync(testDirID + '/_site/index.html'), true);
-      assert.equal(
-          fs.readFileSync(testDirID + '/_site/index.html') + '',
-          '<html><head><title>test</title></head><body><h1>Hello world!</h1></body></html>\n');
-      assert.strictEqual(fs.existsSync(testDirID + '/_site/testA.html'), true);
-      assert.equal(
-          fs.readFileSync(testDirID + '/_site/testA.html') + '',
-          '<html><head><title>test</title></head><body><h1>Hello World</h1>\n</body></html>\n');
-      done();
-    });
+    assert.strictEqual(fs.existsSync(testDirID + '/index.html'), true);
+    assert.strictEqual(fs.existsSync(testDirID + '/_site'), true);
+    assert.strictEqual(fs.existsSync(testDirID + '/_site/index.html'), true);
+    assert.equal(
+        fs.readFileSync(testDirID + '/_site/index.html') + '',
+        '<html><head><title>test</title></head><body><h1>Hello world!</h1></body></html>\n');
+    assert.strictEqual(fs.existsSync(testDirID + '/_site/testA.html'), true);
+    assert.equal(
+        fs.readFileSync(testDirID + '/_site/testA.html') + '',
+        '<html><head><title>test</title></head><body><h1>Hello World</h1>\n</body></html>\n');
   });
 
-  it('deletes _site folder on clean', function(done)
+  it('deletes _site folder on clean', async function()
   {
     fs.mkdirSync(testDirID + '/_site');
     fs.writeFileSync(testDirID + '/_site/index.html', '---\n---\n<html><head><title>test</title></head><body><h1>Hello world!</h1></body></html>');
     fs.writeFileSync(testDirID + '/index.html', '---\n---\n<html><head><title>test</title></head><body><h1>Hello world!</h1></body></html>');
 
-    const proc = runApp(['clean']);
+    await runApp(['clean']);
 
-    proc.handle.on('close', (code) =>
-    {
-      assert.strictEqual(code, 0);
-      assert.strictEqual(true, fs.existsSync(testDirID + '/index.html'));
-      assert.strictEqual(false, fs.existsSync(testDirID + '/_site'));
-      done();
-    });
+    assert.strictEqual(true, fs.existsSync(testDirID + '/index.html'));
+    assert.strictEqual(false, fs.existsSync(testDirID + '/_site'));
   });
 });

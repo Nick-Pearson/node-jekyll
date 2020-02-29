@@ -19,7 +19,8 @@ module.exports.frontMatter = (contents) =>
     }
 
     const yamlBlock = contents.substring(3, endOfBlock);
-    return {frontmatter: yaml.safeLoad(yamlBlock), remaining: contents.substring(endOfBlock + 4)};
+    const frontmatter = yaml.safeLoad(yamlBlock);
+    return {frontmatter: frontmatter === undefined ? {} : frontmatter, remaining: contents.substring(endOfBlock + 4)};
   }
 
   return {frontmatter: null, remaining: contents};
